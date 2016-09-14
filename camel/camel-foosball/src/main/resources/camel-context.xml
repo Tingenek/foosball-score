@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camel="http://camel.apache.org/schema/spring"
+	xmlns:lang="http://www.springframework.org/schema/lang"
+	xsi:schemaLocation="
+         http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+         http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd 
+         http://www.springframework.org/schema/lang http://www.springframework.org/schema/lang/spring-lang-2.0.xsd">
+
+	<!-- camelContext is the Camel runtime, where we can host Camel routes -->
+
+	<camelContext xmlns="http://camel.apache.org/schema/spring">
+
+		<!-- propertyPlaceholder id="properties" location="classpath:myprop.properties" 
+			/ -->
+
+		<route id="startUp" startupOrder="1">
+			<from uri="timer://runOnce?repeatCount=1&amp;delay=0" />
+			<log message="Startup..." />
+		</route>
+
+<route>
+<!-- <from uri="stream:file?fileName=/dev/cu.usbmodem000001&amp;scanStream=true&amp;scanStreamDelay=1000"/> -->
+ <from uri="stream:in"/>
+ <convertBodyTo type="java.lang.String"/>
+ <to uri="seda:myfeed"/>
+ </route>
+
+<route>
+ 	<from uri="direct:newgame"/>
+ 		<transform><simple>{"now": "${header.now}","game": "${id}"}</simple></transform>
+	 	<setProperty propertyName="MQTTRetain"><constant>true</constant></setProperty>
+ 		<to uri="mqtt:camel?host=tcp://iot.eclipse.org:1883&amp;publishTopicName=/marklogic/london/foosball/game/start&amp;qualityOfService=AtMostOnce"/>
+ 		<log message="new game started"/>
+ 		<to uri="stream:out"/>
+</route>
+
+<route>
+ 	<from uri="direct:goal"/>
+ 		<transform><simple>{"now": "${header.now}","goal": "${body}"}</simple></transform>
+		<setProperty propertyName="MQTTRetain"><constant>false</constant></setProperty>
+ 		<to uri="mqtt:camel?host=tcp://iot.eclipse.org:1883&amp;publishTopicName=/marklogic/london/foosball/game/goal&amp;qualityOfService=AtMostOnce"/>
+ 		<log message="goal!"/>
+ 		<to uri="stream:out"/>
+</route>
+
+<route>
+ 	<from uri="direct:scores"/>
+ 		<transform><simple>{"now": "${header.now}","score": "${body}"}</simple></transform>
+ 		<setProperty propertyName="MQTTRetain"><constant>true</constant></setProperty>
+ 		<to uri="mqtt:camel?host=tcp://iot.eclipse.org:1883&amp;publishTopicName=/marklogic/london/foosball/game/scores&amp;qualityOfService=AtMostOnce"/>
+ 		<log message="goal!"/>
+ 		<to uri="stream:out"/>
+</route>
+
+<route>
+ <from uri="seda:myfeed"/>
+ <setHeader headerName="now">
+  <simple>${date:now:yyyy-MM-dd'T'HH:mmZ}</simple>
+</setHeader>
+ <choice>
+   <when><simple>${body} contains 'SCORE!:'</simple>
+        <to uri="direct:goal"/>
+    </when>
+    <when><simple>${body} contains '---NEWGAME---'</simple>
+        <to uri="direct:newgame"/>
+    </when>
+     <when><simple>${body} contains 'HOME:'</simple>
+        <to uri="direct:scores"/>
+    </when>
+     <otherwise>
+        <to uri="stream:out"/>
+    </otherwise>
+</choice>
+</route>
+ 
+ </camelContext>
+
+
+</beans>
