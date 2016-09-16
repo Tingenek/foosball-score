@@ -1,6 +1,6 @@
 # Foosball-score
 
-!(https://cloud.githubusercontent.com/assets/1476541/18579986/da73059e-7bf0-11e6-975c-9378f2495329.jpg)
+![Alt text](https://cloud.githubusercontent.com/assets/1476541/18579986/da73059e-7bf0-11e6-975c-9378f2495329.jpg)
 
 IR + Arduino + RPi + MQTT Foosball table goal system.
 
